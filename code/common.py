@@ -113,3 +113,23 @@ PROMPT = ("Answer the question with a short answer only: an entity name, a numbe
           "Answer in English. Do not explain.\nQuestion: {q}\nAnswer:")
 REWRITE = ("Rewrite the following question in Hindi using Devanagari script. Keep the meaning and every name exactly. "
            "Output only the rewritten question.\nQuestion: {q}")
+
+
+# ---- fixed casual romanizer (rom_a2): keeps long vowels, only drops the inherent schwa
+def rom_a2(dev):
+    d = dev.replace("ॉ", "ो").replace("ऑ", "ओ").replace("़", "").replace("‍", "").replace("‌", "")
+    s = to_itrans(d).replace("{}", "")
+    for a, b in (("A", "\x01"), ("I", "\x02"), ("U", "\x03")): s = s.replace(a, b)
+    for a, b in (("R^i", "ri"), ("kSh", "ksh"), ("GY", "gy"), ("~n", "n"), (".N", "n"), (".n", "n"), ("M", "n"), ("H", "h"),
+                 ("T", "t"), ("D", "d"), ("N", "n"), ("Sh", "sh"), ("shh", "sh"), ("Ch", "chh"), ("aa", "a"), ("ii", "i"), ("uu", "u")):
+        s = s.replace(a, b)
+    s = s.lower()
+    def fix(w):
+        if len(w) >= 4 and w.endswith("a") and w[-2] not in "aeiou\x01\x02\x03": return w[:-1]
+        return w
+    s = re.sub(r"[a-z\x01\x02\x03]+", lambda m: fix(m.group(0)), s)
+    return s.replace("\x01", "a").replace("\x02", "i").replace("\x03", "u")
+
+_bv_old = build_views
+def build_views(r):
+    r = _bv_old(r); r["rom_a2"] = rom_a2(r["dev"]); return r

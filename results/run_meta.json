@@ -1,0 +1,1 @@
+{"n_layers": 36, "hidden": 2048, "layers_saved": [3, 7, 11, 15, 19, 23, 27, 31, 35], "gpu": "Tesla T4", "torch": "2.11.0+cu130", "N": 2400, "model_path": "/kaggle/input/models/cohere-labs/tiny-aya/transformers/global/1", "transformers": "5.20.2"}

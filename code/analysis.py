@@ -12,14 +12,14 @@ rng = np.random.default_rng(1234)
 pairs = [json.loads(l) for l in open(f"{D}/pairs.jsonl")]
 P = {p["qid"]: p for p in pairs}
 G = {}
-for v in ["en", "dev", "rom_a", "rom_b", "noise3", "noise6", "selfrr"]:
+for v in ["en", "dev", "rom_a", "rom_a2", "rom_b", "noise3", "noise6", "selfrr"]:
     fp = f"{D}/gen_{v}.jsonl"
     if os.path.exists(fp): G[v] = {r["qid"]: r for r in map(json.loads, open(fp))}
 RW = {}
 if os.path.exists(f"{D}/gen_rewrite.jsonl"): RW = {r["qid"]: r for r in map(json.loads, open(f"{D}/gen_rewrite.jsonl"))}
 _aq = set(json.load(open(f"{D}/acts_{HEAD}_qids.json"))) & set(json.load(open(f"{D}/acts_dev_qids.json")))
 qids = [q for q in P if all(q in G[v] for v in G) and q in _aq]
-grp = np.array([P[q]["group_id"] for q in qids]); ug = np.unique(grp)
+grp = np.array([str(P[q]["group_id"]) for q in qids]); ug = np.unique(grp)
 lab = {v: np.array([G[v][q]["correct"] for q in qids], int) for v in G}
 n = len(qids); res = {"n": n, "acc": {v: float(lab[v].mean()) for v in lab}}
 

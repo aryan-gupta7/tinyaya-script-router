@@ -4,3 +4,8 @@
 - Romanization: ROM_A = rule-based ITRANS followed by a casual-spelling cleanup (IndicXlit not installed). ROM_B = plain ITRANS. Headline view = ROM_A. A human-typed subset (150 questions) is collected separately.
 - Time-limited run: about 2000 Mintaka questions in one Kaggle session. No fine-tuning.
 - Dropped for time and not run: CircuitKIT analysis, tiny-aya-fire, 4-bit probe test, Global-MMLU-Lite anchor, Space demo.
+- Review finding: the first Roman view (rom_a) dropped word-final long vowels and left stray Devanagari in 561 questions. Fixed romanizer rom_a2 is the headline. rom_a results are kept for transparency.
+- Router and probe-vs-entropy claims were downgraded after the review: the probe is comparable to entropy overall and worse on non-yes/no questions, and the router did not beat baselines.
+- The 150 typed questions were written by teammates from the English question, so they are not word-for-word twins of the Devanagari text. They are reported as a separate, directional result.
+- Scorer check was done by the AI assistant, not a human. Listed as a limitation.
+- The first GPU job crashed in the rewrite step (out of memory because scores over the full vocabulary were stored). Fixed by not storing scores for rewrites.

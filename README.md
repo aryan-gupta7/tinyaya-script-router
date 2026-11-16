@@ -1,43 +1,48 @@
 # Typed in Roman, known in Devanagari
 
-A probe-gated script router for Cohere Tiny Aya (`CohereLabs/tiny-aya-global`).
-Entry for the Lexsi AI Safety and Alignment Hackathon, Track 2b-13 (hallucination detection and abstention).
+How much factual accuracy does Cohere Tiny Aya Global lose when a Hindi question is written in Roman script, and can its hidden state tell us when to be careful?
+Entry for the Lexsi AI Safety and Alignment Hackathon, Track 2b, problem statement "Hallucination detection and abstention".
+No fine-tuning. Model: `CohereLabs/tiny-aya-global` (3.35B). Data: Mintaka (Hindi and English, CC-BY-4.0), 2,400 questions in 1,281 question groups. All tables below are generated from files in `results/`.
 
-**Status: results are being generated. This README will be updated with the numbers from `results/` once the run finishes. Nothing below reports a result.**
+## Headline
+1. **Roman Hindi costs accuracy, beyond typo noise.** Devanagari 15.6%, Roman 10.1% (exact McNemar p = 2e-12, 248 questions right only in Devanagari against 115 right only in Roman). The gap exceeds what 3% and 6% typo noise explains by 3.8 points (95% interval 2.1 to 5.2, resampling question groups). On questions that are not yes/no: Devanagari 14.9%, Roman 6.3%. Roman keeps only 27.5% of the answers that Devanagari gets right.
+2. **A hidden-state probe predicts wrong answers, but not better than entropy everywhere.** Out-of-fold on all questions the linear probe has AUROC 0.84 against 0.80 for the model's first-token entropy (difference +0.04, interval 0.01 to 0.08). On non-yes/no questions entropy is better, 0.87 against 0.82. Adding the probe to entropy gives no gain there. We do not claim the probe beats entropy.
+3. **A probe-gated router did not help.** Asking Tiny Aya to rewrite the question into Devanagari raises accuracy from 10.1% to 11.0% for about three times the tokens. At matched coverage the probe router is no better than an entropy gate or random routing (`results/policy_selfrewrite.json`). We report this as a negative result.
+4. **Human-typed Roman Hindi behaves differently from machine romanization.** 150 questions typed by three teammates from the English question scored 22.0%, higher than Devanagari (12.7%) and machine Roman (12.0%) on the same questions. Teammates kept English names in Latin letters and reworded freely, so this is not comparable with transliterating the Hindi text. It does show that the size of any script gap depends on how Roman text is produced, and that our machine-romanization gap should not be read as the loss real users suffer.
 
-## Question
-Many Indian users type Hindi in Roman script ("bharat ki rajdhani kya hai"). We ask:
-1. Does Tiny Aya answer benign factual questions less accurately when they are typed in Roman script than in Devanagari, after controlling for plain typo noise?
-2. Does the model's hidden state at the last prompt token, before it generates, reveal which Roman-script questions it would answer correctly in Devanagari?
-3. Does a router that uses that signal (answer as typed, rewrite to Devanagari and re-ask, or abstain) deliver fewer wrong and more right answers than fair baselines at matched coverage?
+Plots: `results/figs/`. Full tables: `results/summary.md`.
 
-No fine-tuning is used.
+## What was measured
+- **Views** per question: Devanagari (Mintaka's Hindi), Roman (rule-based transliteration with casual-spelling cleanup, `rom_a2`), the same Devanagari with 3% and 6% character edits as noise controls, and for 150 questions Roman text typed by people. An earlier Roman version (`rom_a`) had a vowel-dropping bug that we found during review. It is kept in `results/analysis3_rom_a.json` and the gap holds with it (15.6% against 9.3%).
+- **Prompt and scoring:** one template, greedy decoding, answer requested in English and scored against English gold aliases (normalised exact match, or token F1 of at least 0.8). The scorer is strict. A looser containment scorer keeps the gap (17.1% against 10.7%). A 90-answer check by the AI assistant found no wrong answer scored right (`docs/scorer_check.md`). It was not a human audit.
+- **Probes:** logistic regression on the hidden state at the last prompt token (layers 19 and 31 reported), grouped 5-fold cross-validation by question group so related questions never straddle train and test.
+- **Router:** answer if the first probe score is high, else re-render and answer if the second is high, else abstain. Baselines use the same coverage: always answer, always rewrite, entropy, mean log-probability, a non-neural gate, random routing and an oracle.
 
-## Method
-- Data: Mintaka (Hindi and English, CC-BY-4.0). Each question has views: Devanagari (DEV), Roman (ROM_A, rule-based ITRANS plus casual-spelling cleanup), and two noisy Devanagari controls (3 and 6 percent character edits). A human-typed Roman subset is collected separately.
-- Model prompt: one fixed template, greedy decoding, the answer is always requested in English and scored against English gold aliases (`code/common.py`).
-- Gap test: exact McNemar test over all question pairs, with the noise control and grouped bootstrap intervals.
-- Probes: logistic regression on last-prompt-token hidden states, group-aware train, validation and test splits. One probe predicts whether the Roman answer is correct, another whether the Devanagari answer would be correct. A gradient-boosted control sees only question type, length, tokenization fragmentation and entity count.
-- Router: answer if the first score passes a threshold, else re-render if the second passes its threshold, else abstain. Re-rendering is done by Tiny Aya itself. Baselines (always answer, always rewrite, entropy, mean log-probability, non-neural gate, random routing, oracle) use the same abstention treatment at matched coverage.
-- Details: `docs/mechanism.md`, hypotheses and decision rules: `docs/preregistration.md`, decisions made along the way: `DECISIONS.md`.
-
-## Repository layout
-```
-code/common.py          scoring, Mintaka loading, view construction
-code/gen_main.py        generation and hidden-state capture on Kaggle
-code/analysis.py        gap test, probes, control, router and baselines
-code/kaggle_run_all.py  the single script run on Kaggle (common + gen_main + analysis)
-docs/                   mechanism and preregistration
-results/                outputs (added after the run)
-```
-
-## Reproduce
-1. On Kaggle, attach the model `cohere-labs/tiny-aya` (Transformers, variation `global`), enable a T4 GPU and internet, and run `code/kaggle_run_all.py` as a script. Defaults: 2400 questions, seed 1234, about one hour.
-2. Outputs (generations, hidden states, `results/*_analysis.json`) are written to `/kaggle/working`.
-3. `python code/analysis.py <out_dir>` reruns the analysis from the saved files.
+## Lexsi toolkits used (and what they did)
+| Repo | Use | Evidence |
+|---|---|---|
+| AuditKIT | Paired comparison of per-question verdicts between views: Devanagari to Roman, 248 right-to-wrong and 115 wrong-to-right | `results/part3_results.json` |
+| SafeTune | Its mean-difference linear probe, fitted on correct versus wrong Roman prompts (held-out AUROC 0.66). Weaker than our logistic-regression probe | `results/part3_results.json` |
+| CuratorKIT | Clean and near-duplicate screen of the question pool with provenance export (2,400 in, 2,390 kept) | `dataset/curatorkit_out/` |
 
 ## Limitations
-Mintaka may appear in Tiny Aya's training data. Romanization is machine generated apart from a small human-typed subset. One language and one model are tested. Answers are requested in English, so the test measures comprehension and recall, not generation in Roman script. The probe is correlational, so no mechanism is claimed. This was built in a few hours: CircuitKIT, `tiny-aya-fire`, a 4-bit test and a demo Space were dropped.
+- Accuracy is low for every view because this is closed-book trivia on a 3B model, so the absolute numbers are small and many questions are unanswerable in any script.
+- Mintaka may be in Tiny Aya's training data.
+- Roman text is machine generated except the 150 typed questions, which were written from English and are not paired word for word with the Devanagari twins.
+- One language, one model, one dataset. The probe is correlational. No mechanism is claimed.
+- The scorer was checked by the AI assistant, not by a human. Noise controls at 3% and 6% may share some edits.
+- Built in one day. Not done: human scorer audit, `tiny-aya-fire`, a patching experiment, CircuitKIT, a demo Space.
+
+## Reproduce
+Kaggle with a T4 GPU, model `cohere-labs/tiny-aya` (Transformers, `global`), internet on.
+1. `code/kaggle_part1_main_run.py`: views and answers for Devanagari, Roman and the noise controls, with hidden states (about 40 minutes for 2,400 questions).
+2. `code/kaggle_part2_rewrite.py`: self-rewrite step.
+3. The final fixed-romanizer run, typed questions and toolkit use are in `code/kaggle_part4_final.py`.
+4. Analysis on CPU: `HEAD=rom_a2 python code/analysis.py <dir>`, `HEAD=rom_a2 python code/analysis3.py <dir> out.json`, `python code/build_summary.py results`, `python code/make_figs.py results/analysis3_rom_a2.json results/figs`.
+Seed 1234 everywhere. Decisions and deviations: `DECISIONS.md`.
+
+## Artifacts
+Hugging Face: dataset https://huggingface.co/datasets/s1nn3rx69/script-router-pairs and probes https://huggingface.co/s1nn3rx69/script-router-probes. Collections: https://huggingface.co/collections/s1nn3rx69/script-router-6afab6e7120d5e7cae179c2d and https://huggingface.co/collections/s1nn3rx69/script-router-data-6afabb4a51c779a9e3afedb5.
 
 ## Licences
-Code: MIT. Tiny Aya is CC-BY-NC with an acceptable use policy, so use of the model outputs stays non-commercial. Mintaka is CC-BY-4.0.
+Code MIT. Tiny Aya is CC-BY-NC with an acceptable use policy, so outputs stay non-commercial. Mintaka is CC-BY-4.0. CuratorKIT is under a non-commercial research licence.
