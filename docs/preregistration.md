@@ -1,3 +1,5 @@
+> **Status: planning template, NOT frozen.** This file was written before the run as a plan. The pilot was skipped for time, so the `[FILL]` blanks were never filled and no freeze commit exists. The analysis below was run, and where it departs from this plan the departures are listed under "Deviations actually made" at the bottom. Read the README for what was actually done and found.
+
 # 03 Pre-registration (freeze before touching the test split)
 
 Instructions:
@@ -77,3 +79,14 @@ Instructions:
 
 ## 7. Deviations
 (append: date, what changed, why, who decided)
+
+
+## Deviations actually made (honest record)
+1. **No pilot, no freeze.** The 300-question pilot and the freeze commit did not happen because of the deadline. Thresholds and layers were chosen on training and validation folds only, but the plan was not committed before the data were seen.
+2. **Pool size.** N = 2,400 questions, not sized to reach 400 recoverable questions. There are 248 recoverable questions, so H2c (recoverability probe) is underpowered and is reported as not supported.
+3. **Evaluation protocol.** Headline probe results use grouped 5-fold out-of-fold predictions on all 2,400 questions (by question group), not a single held-out test split. The router and baselines use a single group-based 60/20/20 split.
+4. **Headline romanizer changed.** The first Roman view (`rom_a`) had a vowel-dropping bug found in review. The headline became the corrected `rom_a2`. Both are reported.
+5. **Layers.** Layers 19 and 31 are both reported from the same data.
+6. **Claims dropped after review.** The router headline and any claim that the probe beats entropy were removed after an independent review.
+7. **Scorer audit.** Done as an assistant read-through of 90 answers, not a 100-per-view human audit.
+8. **Not run:** `tiny-aya-fire`, activation patching, CircuitKIT, a demo Space, the 4-bit test and the Global-MMLU anchor.

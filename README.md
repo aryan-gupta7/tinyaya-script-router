@@ -1,14 +1,18 @@
 # Typed in Roman, known in Devanagari
 
-How much factual accuracy does Cohere Tiny Aya Global lose when a Hindi question is written in Roman script, and can its hidden state tell us when to be careful?
-Entry for the Lexsi AI Safety and Alignment Hackathon, Track 2b, problem statement "Hallucination detection and abstention".
-No fine-tuning. Model: `CohereLabs/tiny-aya-global` (3.35B). Data: Mintaka (Hindi and English, CC-BY-4.0), 2,400 questions in 1,281 question groups. All tables below are generated from files in `results/`.
+*A noise-controlled measurement of the Roman-script accuracy gap in Cohere Tiny Aya, with a negative result for probe-gated routing. The gap is measured on machine-romanized Hindi; text typed by people did not show the loss.*
 
-## Headline
-1. **Roman Hindi costs accuracy, beyond typo noise.** Devanagari 15.6%, Roman 10.1% (exact McNemar p = 2e-12, 248 questions right only in Devanagari against 115 right only in Roman). The gap exceeds what 3% and 6% typo noise explains by 3.8 points (95% interval 2.1 to 5.2, resampling question groups). On questions that are not yes/no: Devanagari 14.9%, Roman 6.3%. Roman keeps only 27.5% of the answers that Devanagari gets right.
-2. **A hidden-state probe predicts wrong answers, but not better than entropy everywhere.** Out-of-fold on all questions the linear probe has AUROC 0.84 against 0.80 for the model's first-token entropy (difference +0.04, interval 0.01 to 0.08). On non-yes/no questions entropy is better, 0.87 against 0.82. Adding the probe to entropy gives no gain there. We do not claim the probe beats entropy.
-3. **A probe-gated router did not help.** Asking Tiny Aya to rewrite the question into Devanagari raises accuracy from 10.1% to 11.0% for about three times the tokens. At matched coverage the probe router is no better than an entropy gate or random routing (`results/policy_selfrewrite.json`). We report this as a negative result.
-4. **Human-typed Roman Hindi behaves differently from machine romanization.** 150 questions typed by three teammates from the English question scored 22.0%, higher than Devanagari (12.7%) and machine Roman (12.0%) on the same questions. Teammates kept English names in Latin letters and reworded freely, so this is not comparable with transliterating the Hindi text. It does show that the size of any script gap depends on how Roman text is produced, and that our machine-romanization gap should not be read as the loss real users suffer.
+This entry is about **wrong answers to benign factual questions**, not harmful-request refusals. Other entries study romanized-Hindi safety refusals. We do not.
+
+Entry for the Lexsi AI Safety and Alignment Hackathon, Track 2b, problem statement "Hallucination detection and abstention". No fine-tuning. Model: `CohereLabs/tiny-aya-global` (3.35B). Data: Mintaka (Hindi and English, CC-BY-4.0), 2,400 questions in 1,281 question groups. All tables below are generated from files in `results/`.
+
+## Headline (lead with questions that are not yes/no)
+1. **Machine-romanized Hindi costs accuracy, beyond typo noise.** On the 2,048 questions that are not yes/no, Devanagari scores 14.9% and Roman 6.3% (222 right only in Devanagari, 45 right only in Roman). Roman keeps only 27.5% of the answers Devanagari gets right. The loss appears for entity answers (17.3% to 7.6%), numbers (5.9% to 1.4%) and dates (16.9% to 7.0%) (`results/analysis4.json`), and holds when each question group gets one vote (164 groups favour Devanagari, 33 favour Roman, p = 4e-22).
+2. **The yes/no questions go the other way, and that is a format artefact.** On the 352 yes/no questions Devanagari scores 19.6% and Roman 32.1%, because the model often answers a yes/no question with an entity in Devanagari and says "no" more often in Roman. Pooling them gives the all-question figures (Devanagari 15.6%, Roman 10.1%, McNemar p = 2e-12), which mix this format effect with the script effect, so we do not lead with them.
+3. **How much of the gap is typo noise?** The script gap exceeds the typo-noise gap by 3.0 points against 6% noise and by 4.5 points against 3% noise (3.8 on average, 95% interval 2.1 to 5.2 with group resampling). The two noise controls are not independent (the 6% edits include the 3% ones), and character typos in Devanagari are only a rough stand-in for transliteration error.
+4. **Hidden-state probes did not show that recoverability is readable before generation.** A probe for "would the Devanagari answer be right" reaches AUROC 0.59 (95% interval 0.54 to 0.63) among Roman-wrong answers, with 248 positives. That is below the 0.65 bar and below the 400 positives we planned for, so we do not claim it. A probe for "will this Roman answer be wrong" reaches out-of-fold AUROC 0.84 against 0.80 for first-token entropy overall, but entropy is better on non-yes/no questions (0.87 against 0.82), so we claim comparable, not better.
+5. **The router did not help.** At matched coverage the probe router is no better than an entropy gate or random routing (`results/policy_selfrewrite.json`), covering about 10% of questions at 26% selective accuracy. Tiny Aya's own rewrite to Devanagari moves accuracy from 10.1% to 11.0% (129 questions lost, 151 gained, McNemar p = 0.21, not significant) for about three times the tokens.
+6. **Human-typed Roman Hindi did not show the loss.** 150 questions typed by three teammates from the English question scored 22.0%, higher than Devanagari (12.7%) and machine Roman (12.0%) on the same questions. A plausible reason, which we did not test, is that machine romanization garbles names that people keep in Latin letters. So the machine-romanization gap above should not be read as the loss real users suffer.
 
 Plots: `results/figs/`. Full tables: `results/summary.md`.
 
@@ -21,9 +25,9 @@ Plots: `results/figs/`. Full tables: `results/summary.md`.
 ## Lexsi toolkits used (and what they did)
 | Repo | Use | Evidence |
 |---|---|---|
-| AuditKIT | Paired comparison of per-question verdicts between views: Devanagari to Roman, 248 right-to-wrong and 115 wrong-to-right | `results/part3_results.json` |
-| SafeTune | Its mean-difference linear probe, fitted on correct versus wrong Roman prompts (held-out AUROC 0.66). Weaker than our logistic-regression probe | `results/part3_results.json` |
-| CuratorKIT | Clean and near-duplicate screen of the question pool with provenance export (2,400 in, 2,390 kept) | `dataset/curatorkit_out/` |
+| AuditKIT | Paired comparison of per-question verdicts between views, giving 248 right-to-wrong and 115 wrong-to-right from Devanagari to Roman. This reproduces counts we also compute ourselves, so its role is light | `results/part3_results.json` |
+| SafeTune | Its mean-difference linear probe, fitted on correct versus wrong Roman prompts (held-out AUROC 0.66, weaker than our logistic-regression probe at 0.84) | `results/part3_results.json` |
+| CuratorKIT | Clean and near-duplicate screen of the question pool with provenance export. 2,400 questions in, 2,390 passed, 10 dropped as exact duplicates | `data/curatorkit/` |
 
 ## Limitations
 - Accuracy is low for every view because this is closed-book trivia on a 3B model, so the absolute numbers are small and many questions are unanswerable in any script.
